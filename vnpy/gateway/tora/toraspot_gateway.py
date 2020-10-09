@@ -4,50 +4,50 @@ from datetime import datetime
 from dataclasses import dataclass
 
 from vnpy.api.tora import (
-    sptraderapi,
-    spmdapi,
-    TORA_TSTP_SP_D_Buy,
-    TORA_TSTP_SP_D_Sell,
-    TORA_TSTP_SP_EXD_SSE,
-    TORA_TSTP_SP_EXD_SZSE,
-    TORA_TSTP_SP_OPT_LimitPrice,
-    TORA_TSTP_SP_OST_AllTraded,
-    TORA_TSTP_SP_OST_Cancelled,
-    TORA_TSTP_SP_OST_Accepted,
-    TORA_TSTP_SP_OST_PartTraded,
+    traderapi,
+    mdapi,
+    TORA_TSTP_D_Buy,
+    TORA_TSTP_D_Sell,
+    TORA_TSTP_EXD_SSE,
+    TORA_TSTP_EXD_SZSE,
+    TORA_TSTP_OPT_LimitPrice,
+    TORA_TSTP_OST_AllTraded,
+    TORA_TSTP_OST_Canceled,
+    TORA_TSTP_OST_NoTradeQueueing,
+    TORA_TSTP_OST_PartTradedQueueing,
     TORA_TERT_RESTART,
-    TORA_TSTP_SP_LACT_UserID,
-    TORA_TSTP_SP_PID_SHBond,
-    TORA_TSTP_SP_PID_SHFund,
-    TORA_TSTP_SP_PID_SHStock,
-    TORA_TSTP_SP_PID_SZBond,
-    TORA_TSTP_SP_PID_SZFund,
-    TORA_TSTP_SP_PID_SZStock,
-    TORA_TSTP_SP_TC_GFD,
-    TORA_TSTP_SP_TC_IOC,
-    TORA_TSTP_SP_VC_AV,
-    TORA_TSTP_SP_OAF_Delete,
-    TORA_TSTP_SP_HF_Speculation,
-    TORA_TSTP_SP_OF_Open,
-    TORA_TSTP_SP_OF_Close,
-    CTORATstpSPQrySecurityField,
-    CTORATstpSPQryInvestorField,
-    CTORATstpSPQryShareholderAccountField,
-    CTORATstpSPQryTradingAccountField,
-    CTORATstpSPQryPositionField,
-    CTORATstpSPQryOrderField,
-    CTORATstpSPQryTradeField,
-    TORA_TSTP_SP_PID_SHStockOption,
-    TORA_TSTP_SP_PID_SZStockOption,
-    CTORATstpSPInputOrderField,
-    CTORATstpSPInputOrderActionField,
-    TORA_TSTP_SP_OST_Handled,
-    TORA_TSTP_SP_PD_Net,
-    TORA_TSTP_SP_PD_Long,
-    TORA_TSTP_SP_PD_Short,
-    TORA_TSTP_SP_OST_Failed,
-    TORA_TSTP_SP_CP_PutOptions,
-    TORA_TSTP_SP_CP_CallOptions
+    TORA_TSTP_LACT_UserID,
+    TORA_TSTP_PID_SHBond,
+    TORA_TSTP_PID_SHFund,
+    TORA_TSTP_PID_SHStock,
+    TORA_TSTP_PID_SZBond,
+    TORA_TSTP_PID_SZFund,
+    TORA_TSTP_PID_SZStock,
+    TORA_TSTP_TC_GFD,
+    TORA_TSTP_TC_IOC,
+    TORA_TSTP_VC_AV,
+    TORA_TSTP_AF_Delete,
+    TORA_TSTP_HF_Speculation,
+    TORA_TSTP_OF_Open,
+    TORA_TSTP_OF_Close,
+    CTORATstpQrySecurityField,
+    CTORATstpQryInvestorField,
+    CTORATstpQryShareholderAccountField,
+    CTORATstpQryTradingAccountField,
+    CTORATstpQryPositionField,
+    CTORATstpQryOrderField,
+    CTORATstpQryTradeField,
+    TORA_TSTP_PID_SHStock,
+    TORA_TSTP_PID_SZStock,
+    CTORATstpInputOrderField,
+    CTORATstpInputOrderActionField,
+    TORA_TSTP_PID_SHKC,
+    TORA_TSTP_OST_Unknown,
+    # TORA_TSTP_OST_Handled,
+    # TORA_TSTP_PD_Net,
+    # TORA_TSTP_PD_Long,
+    # TORA_TSTP_PD_Short,
+    # TORA_TSTP_OST_Failed,
 )
 from vnpy.trader.gateway import BaseGateway
 from vnpy.event import EventEngine
@@ -70,49 +70,35 @@ from vnpy.trader.constant import (
     OrderType,
     Product,
     Status,
-    Offset,
-    OptionType
+    Offset
 )
 
 EXCHANGE_TORA2VT = {
-    TORA_TSTP_SP_EXD_SSE: Exchange.SSE,
-    TORA_TSTP_SP_EXD_SZSE: Exchange.SZSE,
+    TORA_TSTP_EXD_SSE: Exchange.SSE,
+    TORA_TSTP_EXD_SZSE: Exchange.SZSE,
 }
 EXCHANGE_VT2TORA = {v: k for k, v in EXCHANGE_TORA2VT.items()}
 
 PRODUCT_TORA2VT = {
-    TORA_TSTP_SP_PID_SHStock: Product.EQUITY,
-    TORA_TSTP_SP_PID_SHFund: Product.FUND,
-    TORA_TSTP_SP_PID_SHBond: Product.BOND,
-    TORA_TSTP_SP_PID_SZStock: Product.EQUITY,
-    TORA_TSTP_SP_PID_SZFund: Product.FUND,
-    TORA_TSTP_SP_PID_SZBond: Product.BOND,
-    TORA_TSTP_SP_PID_SHStockOption: Product.OPTION,
-    TORA_TSTP_SP_PID_SZStockOption: Product.OPTION,
+    TORA_TSTP_PID_SHStock: Product.EQUITY,
+    TORA_TSTP_PID_SHFund: Product.FUND,
+    TORA_TSTP_PID_SHBond: Product.BOND,
+    TORA_TSTP_PID_SZStock: Product.EQUITY,
+    TORA_TSTP_PID_SZFund: Product.FUND,
+    TORA_TSTP_PID_SZBond: Product.BOND,
+    TORA_TSTP_PID_SHKC: Product.EQUITY,
 }
 
 DIRECTION_TORA2VT = {
-    TORA_TSTP_SP_D_Buy: Direction.LONG,
-    TORA_TSTP_SP_D_Sell: Direction.SHORT,
+    TORA_TSTP_D_Buy: Direction.LONG,
+    TORA_TSTP_D_Sell: Direction.SHORT,
 }
 
 DIRECTION_VT2TORA = {v: k for k, v in DIRECTION_TORA2VT.items()}
 ORDER_TYPE_VT2TORA: Dict[OrderType, Tuple[str, str, str]] = {
-    OrderType.FOK: (
-        TORA_TSTP_SP_OPT_LimitPrice, TORA_TSTP_SP_TC_IOC, TORA_TSTP_SP_VC_AV
-    ),
-    OrderType.FAK: (
-        TORA_TSTP_SP_OPT_LimitPrice, TORA_TSTP_SP_TC_IOC, TORA_TSTP_SP_VC_AV
-    ),
     OrderType.LIMIT: (
-        TORA_TSTP_SP_OPT_LimitPrice, TORA_TSTP_SP_TC_GFD, TORA_TSTP_SP_VC_AV
+        TORA_TSTP_OPT_LimitPrice, TORA_TSTP_TC_GFD, TORA_TSTP_VC_AV
     ),
-}
-
-POSITION_TORA2VT = {
-    TORA_TSTP_SP_PD_Net: Direction.NET,
-    TORA_TSTP_SP_PD_Long: Direction.LONG,
-    TORA_TSTP_SP_PD_Short: Direction.SHORT,
 }
 
 ORDER_TYPE_TORA2VT: Dict[Tuple[str, str, str], OrderType] = {
@@ -120,33 +106,27 @@ ORDER_TYPE_TORA2VT: Dict[Tuple[str, str, str], OrderType] = {
 }
 
 ORDER_STATUS_TORA2VT: Dict[str, Status] = {
-    TORA_TSTP_SP_OST_AllTraded: Status.ALLTRADED,
-    TORA_TSTP_SP_OST_PartTraded: Status.PARTTRADED,
-    TORA_TSTP_SP_OST_Accepted: Status.NOTTRADED,
-    TORA_TSTP_SP_OST_Cancelled: Status.CANCELLED,
-    TORA_TSTP_SP_OST_Handled: Status.NOTTRADED,
-    TORA_TSTP_SP_OST_Failed: Status.REJECTED,
+    TORA_TSTP_OST_AllTraded: Status.ALLTRADED,
+    TORA_TSTP_OST_PartTradedQueueing: Status.PARTTRADED,
+    TORA_TSTP_OST_NoTradeQueueing: Status.NOTTRADED,
+    TORA_TSTP_OST_Canceled: Status.CANCELLED,
+    TORA_TSTP_OST_Unknown: Status.NOTTRADED,
 }
 
 OFFSET_TORA2VT = {
-    TORA_TSTP_SP_OF_Open: Offset.OPEN,
-    TORA_TSTP_SP_OF_Close: Offset.CLOSE
+    TORA_TSTP_OF_Open: Offset.OPEN,
+    TORA_TSTP_OF_Close: Offset.CLOSE
 }
 
 OFFSET_VT2TORA = {v: k for k, v in OFFSET_TORA2VT.items()}
 ORDERTYPE_TORA2VT = {
-    TORA_TSTP_SP_OPT_LimitPrice: OrderType.LIMIT
-}
-
-OPTIONTYPE_TORA2VT = {
-    TORA_TSTP_SP_CP_CallOptions: OptionType.CALL,
-    TORA_TSTP_SP_CP_PutOptions: OptionType.PUT
+    TORA_TSTP_OPT_LimitPrice: OrderType.LIMIT
 }
 
 CHINA_TZ = pytz.timezone("Asia/Shanghai")
 
 
-class ToraOptionGateway(BaseGateway):
+class ToraSpotGateway(BaseGateway):
     """"""
 
     default_setting = {
@@ -160,7 +140,7 @@ class ToraOptionGateway(BaseGateway):
 
     def __init__(self, event_engine: EventEngine):
         """"""
-        super().__init__(event_engine, "TORAO")
+        super().__init__(event_engine, "TORAS")
 
         self.td_api = ToraTdApi(self)
         self.md_api = ToraMdApi(self)
@@ -233,17 +213,17 @@ class ToraOptionGateway(BaseGateway):
         self.event_engine.register(EVENT_TIMER, self.process_timer_event)
 
 
-class ToraMdApi(spmdapi.CTORATstpSPMdSpi):
+class ToraMdApi(mdapi.CTORATstpMdSpi):
 
     def __init__(self, gateway):
         """Constructor"""
         super(ToraMdApi, self).__init__()
 
-        self.gateway: ToraOptionGateway = gateway
+        self.gateway: ToraSpotGateway = gateway
         self.gateway_name: str = gateway.gateway_name
 
         self.reqid: int = 0
-        self.api: spmdapi.CTORATstpSPMdApi_CreateTstpSPMdApi = None
+        self.api: mdapi.CTORATstpMdApi_CreateTstpMdApi = None
 
         self.connect_status: bool = False
         self.login_status: bool = False
@@ -267,7 +247,13 @@ class ToraMdApi(spmdapi.CTORATstpSPMdSpi):
         self.login_status = False
         self.gateway.write_log(f"行情服务器连接断开，原因{reason}")
 
-    def OnRspUserLogin(self, data: dict, error: dict, reqid: int) -> None:
+    def OnRspUserLogin(
+        self,
+        data: dict,
+        error: dict,
+        reqid: int,
+        last: bool
+    ) -> None:
         """
         Callback when user is logged in.
         """
@@ -368,7 +354,7 @@ class ToraMdApi(spmdapi.CTORATstpSPMdSpi):
 
         # If not connected, then start connection first.
         if not self.connect_status:
-            self.api = spmdapi.CTORATstpSPMdApi_CreateTstpSPMdApi()
+            self.api = mdapi.CTORATstpMdApi_CreateTstpMdApi()
 
             self.api.RegisterSpi(self)
             self.api.RegisterFront(md_address)
@@ -382,9 +368,9 @@ class ToraMdApi(spmdapi.CTORATstpSPMdSpi):
         """
         Login to server.
         """
-        login_req = spmdapi.CTORATstpSPReqUserLoginField()
+        login_req = mdapi.CTORATstpReqUserLoginField()
         login_req.LogInAccount = self.userid
-        login_req.LogInAccountType = TORA_TSTP_SP_LACT_UserID
+        login_req.LogInAccountType = TORA_TSTP_LACT_UserID
         login_req.Password = self.password
 
         self.reqid += 1
@@ -410,14 +396,14 @@ class ToraMdApi(spmdapi.CTORATstpSPMdSpi):
         self.current_date = datetime.now().strftime("%Y%m%d")
 
 
-class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
+class ToraTdApi(traderapi.CTORATstpTraderSpi):
     """"""
 
     def __init__(self, gateway):
         """Constructor"""
         super(ToraTdApi, self).__init__()
 
-        self.gateway: ToraOptionGateway = gateway
+        self.gateway: ToraSpotGateway = gateway
         self.gateway_name: str = gateway.gateway_name
 
         self.reqid: int = 0
@@ -432,7 +418,7 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
         self.shareholder_ids: Dict[Exchange, str] = {}
         self.account_id: str = None
         self.localid: int = 10000
-        self.api: sptraderapi.CTORATstpSPTraderApi.CreateTstpSPTraderApi = None
+        self.api: traderapi.CTORATstpTraderApi.CreateTstpTraderApi = None
         self.userid: str = ""
         self.password: str = ""
         self.frontid: int = 0
@@ -456,6 +442,7 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
         data: dict,
         error: dict,
         reqid: int,
+        last: bool
     ) -> None:
         """"""
         if not error["ErrorID"]:
@@ -478,6 +465,7 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
         data: dict,
         error: dict,
         reqid: int,
+        last: bool
     ) -> None:
         """"""
         error_id = error["ErrorID"]
@@ -505,9 +493,8 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
             exchange=exchange,
             orderid=order_id,
             type=ORDERTYPE_TORA2VT[bytes.decode(data["OrderPriceType"])],
-            direction=DIRECTION_TORA2VT[bytes.decode(data["Direction"])],
-            offset=OFFSET_TORA2VT[data["CombOffsetFlag"]],
-            price=data["Price"],
+            direction=Direction.NET,
+            price=data["LimitPrice"],
             volume=data["VolumeTotalOriginal"],
             traded=data["VolumeTraded"],
             status=ORDER_STATUS_TORA2VT[bytes.decode(data["OrderStatus"])],
@@ -543,8 +530,7 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
             exchange=exchange,
             orderid=orderid,
             tradeid=data["TradeID"],
-            direction=DIRECTION_TORA2VT[bytes.decode(data["Direction"])],
-            offset=OFFSET_TORA2VT[bytes.decode(data["OffsetFlag"])],
+            direction=Direction.NET,
             price=data["Price"],
             volume=data["Volume"],
             datetime=dt,
@@ -567,7 +553,7 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
         if not data:
             return
 
-        contract = ContractData(
+        contract_data = ContractData(
             gateway_name=self.gateway.gateway_name,
             symbol=data["SecurityID"],
             exchange=EXCHANGE_TORA2VT[bytes.decode(data["ExchangeID"])],
@@ -580,24 +566,7 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
             net_position=True,
             history_data=False,
         )
-
-        contract.option_portfolio = data["UnderlyingSecurityID"] + "_O"
-        contract.option_underlying = (
-            data["UnderlyingSecurityID"]
-            + "-"
-            + str(data["LastDate"])
-        )
-        contract.option_type = OPTIONTYPE_TORA2VT[data["OptionsType"]]
-
-        contract.option_strike = data["StrikePrice"]
-        contract.option_expiry = datetime.strptime(
-            str(data["LastDate"]), "%Y%m%d"
-        )
-        contract.option_index = get_option_index(
-            contract.option_strike, data["ExchSecurityID"]
-        )
-
-        self.gateway.on_contract(contract)
+        self.gateway.on_contract(contract_data)
 
     def OnRspQryTradingAccount(
         self,
@@ -614,8 +583,8 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
         account_data = AccountData(
             gateway_name=self.gateway.gateway_name,
             accountid=data["AccountID"],
-            balance=data["UsefulMoney"],
-            frozen=data["FrozenCash"] + data["FrozenMargin"] + data["FrozenCommission"]
+            balance=data["Available"],
+            frozen=data["FrozenCash"] + data["FrozenCommission"]
         )
         self.gateway.on_account(account_data)
 
@@ -660,19 +629,19 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
             self.gateway.write_log("OnRspQryPosition:收到其他账户的仓位信息")
             return
 
-        volume = data["TodayPos"]
+        volume = data["TodayBSPos"]
         if volume == 0:
             price = data["TotalPosCost"]
         else:
             price = data["TotalPosCost"] / volume
 
-        frozen = data["HistoryPosFrozen"] + data["TodayPosFrozen"] + \
-            data["LongFrozen"] + data["ShortFrozen"]
+        frozen = data["HistoryPosFrozen"] + data["TodayBSFrozen"] + \
+            data["TodayPRFrozen"]
         position_data = PositionData(
             gateway_name=self.gateway.gateway_name,
             symbol=data["SecurityID"],
             exchange=EXCHANGE_TORA2VT[bytes.decode(data["ExchangeID"])],
-            direction=POSITION_TORA2VT[bytes.decode(data["PosiDirection"])],
+            direction=Direction.NET,
             volume=volume,
             frozen=frozen,
             price=price,
@@ -681,7 +650,7 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
         )
         self.gateway.on_position(position_data)
 
-    def OnErrRtnOrderInsert(self, data: dict, error: dict, reqid: int) -> None:
+    def OnErrRtnOrderInsert(self, data: dict, error: dict) -> None:
         """"""
         order_ref = data["OrderRef"]
         order_id = f"{self.frontid}_{self.sessionid}_{order_ref}"
@@ -693,8 +662,7 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
             exchange=EXCHANGE_TORA2VT[bytes.decode(data["ExchangeID"])],
             orderid=order_id,
             type=ORDERTYPE_TORA2VT[bytes.decode(data["OrderPriceType"])],
-            direction=DIRECTION_TORA2VT[bytes.decode(data["Direction"])],
-            offset=OFFSET_TORA2VT[data["CombOffsetFlag"]],
+            direction=Direction.NET,
             price=data["LimitPrice"],
             volume=data["VolumeTotalOriginal"],
             traded=0,
@@ -722,6 +690,7 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
         data: dict,
         error: dict,
         reqid: int,
+        last: bool
     ) -> None:
         """"""
         pass
@@ -739,7 +708,7 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
         self.password = password
 
         if not self.connect_status:
-            self.api = sptraderapi.CTORATstpSPTraderApi.CreateTstpSPTraderApi()
+            self.api = traderapi.CTORATstpTraderApi.CreateTstpTraderApi()
             self.api.RegisterSpi(self)
             self.api.RegisterFront(address)
 
@@ -752,9 +721,9 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
         """
         Login onto server.
         """
-        login_req = sptraderapi.CTORATstpSPReqUserLoginField()
+        login_req = traderapi.CTORATstpReqUserLoginField()
         login_req.LogInAccount = self.userid
-        login_req.LogInAccountType = TORA_TSTP_SP_LACT_UserID
+        login_req.LogInAccountType = TORA_TSTP_LACT_UserID
         login_req.Password = self.password
 
         self.reqid += 1
@@ -762,43 +731,43 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
 
     def query_contracts(self) -> None:
         """"""
-        req = CTORATstpSPQrySecurityField()
+        req = CTORATstpQrySecurityField()
         self.reqid += 1
         self.api.ReqQrySecurity(req, self.reqid)
 
     def query_investors(self) -> None:
         """"""
-        req = CTORATstpSPQryInvestorField()
+        req = CTORATstpQryInvestorField()
         self.reqid += 1
         self.api.ReqQryInvestor(req, self.reqid)
 
     def query_shareholder_ids(self) -> None:
         """"""
-        req = CTORATstpSPQryShareholderAccountField()
+        req = CTORATstpQryShareholderAccountField()
         self.reqid += 1
         self.api.ReqQryShareholderAccount(req, self.reqid)
 
     def query_accounts(self) -> None:
         """"""
-        req = CTORATstpSPQryTradingAccountField()
+        req = CTORATstpQryTradingAccountField()
         self.reqid += 1
         self.api.ReqQryTradingAccount(req, self.reqid)
 
     def query_positions(self) -> None:
         """"""
-        req = CTORATstpSPQryPositionField()
+        req = CTORATstpQryPositionField()
         self.reqid += 1
         self.api.ReqQryPosition(req, self.reqid)
 
     def query_orders(self) -> None:
         """"""
-        req = CTORATstpSPQryOrderField()
+        req = CTORATstpQryOrderField()
         self.reqid += 1
         self.api.ReqQryOrder(req, self.reqid)
 
     def query_trades(self) -> None:
         """"""
-        req = CTORATstpSPQryTradeField()
+        req = CTORATstpQryTradeField()
         self.reqid += 1
         self.api.ReqQryTrade(req, self.reqid)
 
@@ -809,15 +778,15 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
 
         opt, tc, vc = ORDER_TYPE_VT2TORA[req.type]
 
-        info = CTORATstpSPInputOrderField()
+        info = CTORATstpInputOrderField()
         info.ShareholderID = self.shareholder_ids[req.exchange]
         info.SecurityID = req.symbol
         info.ExchangeID = EXCHANGE_VT2TORA[req.exchange]
         info.OrderRef = order_ref
         info.OrderPriceType = opt
         info.Direction = DIRECTION_VT2TORA[req.direction]
-        info.CombOffsetFlag = OFFSET_VT2TORA[req.offset]
-        info.CombHedgeFlag = TORA_TSTP_SP_HF_Speculation
+        info.CombOffsetFlag = TORA_TSTP_OF_Open
+        info.CombHedgeFlag = TORA_TSTP_HF_Speculation
         info.LimitPrice = req.price
         info.VolumeTotalOriginal = int(req.volume)
         info.TimeCondition = tc
@@ -839,7 +808,7 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
     def cancel_order(self, req: CancelRequest) -> None:
         """"""
         self.reqid += 1
-        info = CTORATstpSPInputOrderActionField()
+        info = CTORATstpInputOrderActionField()
         info.InvestorID = self.investor_id
         info.ExchangeID = EXCHANGE_VT2TORA[req.exchange]
         info.SecurityID = req.symbol
@@ -848,34 +817,15 @@ class ToraTdApi(sptraderapi.CTORATstpSPTraderSpi):
         info.OrderRef = order_info.local_order_id
         info.FrontID = order_info.front_id
         info.SessionID = order_info.session_id
-        info.OrderActionFlag = TORA_TSTP_SP_OAF_Delete
+        info.ActionFlag = TORA_TSTP_AF_Delete
 
         self.api.ReqOrderAction(info, self.reqid)
 
     def _get_new_order_id(self) -> int:
         """"""
         self.localid += 1
-        order_id = self.localid
+        order_id = str(self.localid)
         return order_id
-
-
-def get_option_index(strike_price: float, exchange_instrument_id: str) -> str:
-    """"""
-    exchange_instrument_id = exchange_instrument_id.replace(" ", "")
-
-    if "M" in exchange_instrument_id:
-        n = exchange_instrument_id.index("M")
-    elif "A" in exchange_instrument_id:
-        n = exchange_instrument_id.index("A")
-    elif "B" in exchange_instrument_id:
-        n = exchange_instrument_id.index("B")
-    else:
-        return str(strike_price)
-
-    index = exchange_instrument_id[n:]
-    option_index = f"{strike_price:.3f}-{index}"
-
-    return option_index
 
 
 @dataclass()
