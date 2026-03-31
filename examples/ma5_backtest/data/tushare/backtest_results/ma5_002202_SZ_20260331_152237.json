@@ -1,0 +1,14 @@
+{
+  "stock": "金风科技",
+  "period": "20230101 - 20251231",
+  "initial_capital": 1000000,
+  "final_capital": 1000000,
+  "total_return": 0.0,
+  "trade_count": 0,
+  "win_rate": 0,
+  "avg_win": 0,
+  "avg_loss": 0,
+  "profit_loss_ratio": 0,
+  "max_drawdown": 0,
+  "trades": []
+}
