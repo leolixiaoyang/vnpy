@@ -9,7 +9,7 @@ from pathlib import Path
 
 import matplotlib
 import polars as pl
-import tushare as ts
+import tinyshare as ts
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -77,11 +77,21 @@ def _download_daily_bars(ts_code: str, token: str) -> list[BarData]:
     ts.set_token(token)
     pro = ts.pro_api()
 
-    raw_df = pro.daily(
-        ts_code=ts_code,
-        start_date=START_DATE.replace("-", ""),
-        end_date=END_DATE.replace("-", ""),
-    )
+    # 判断是否为基金/ETF：以51开头的上交所代码或15开头的深交所代码
+    is_fund = ts_code.startswith("51") or ts_code.startswith("15")
+
+    if is_fund:
+        raw_df = pro.fund_daily(
+            ts_code=ts_code,
+            start_date=START_DATE.replace("-", ""),
+            end_date=END_DATE.replace("-", ""),
+        )
+    else:
+        raw_df = pro.daily(
+            ts_code=ts_code,
+            start_date=START_DATE.replace("-", ""),
+            end_date=END_DATE.replace("-", ""),
+        )
     if raw_df is None or len(raw_df) == 0:
         return []
 

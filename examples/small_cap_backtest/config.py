@@ -51,7 +51,7 @@ USE_SIGNAL_CACHE: bool = True
 
 # Tushare token
 TUSHARE_TOKEN: str = (
-    "a96ef9108067fe2b72a787c7d0e6a6974e6f05fd43fa3050497acdb4"
+    "bNP3yb6kn4CCht3IGVh96GjeRvh72t78FWDwPFe0n2yF2X0w89KsSFjOc54c8a35"
 )
 
 # 回测合约手续费和最小跳动

@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 import polars as pl
-import tushare as ts
+import tinyshare as ts
 
 # 设置 Tushare
 TUSHARE_TOKEN = os.getenv("TUSHARE_TOKEN", "a96ef9108067fe2b72a787c7d0e6a6974e6f05fd43fa3050497acdb4")

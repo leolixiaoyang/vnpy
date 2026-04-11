@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 import polars as pl
-import tushare as ts
+import tinyshare as ts
 
 # 添加项目路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

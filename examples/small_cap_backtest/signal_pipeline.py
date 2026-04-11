@@ -7,7 +7,7 @@ from datetime import datetime
 
 import numpy as np
 import polars as pl
-import tushare as ts
+import tinyshare as ts
 
 
 @dataclass

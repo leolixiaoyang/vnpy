@@ -298,7 +298,7 @@ class LingxiaoASignalPipeline:
     def _fetch_data_from_tushare(self, vt_symbol: str) -> pl.DataFrame | None:
         """使用 tushare 获取 ETF 日线数据。"""
         try:
-            import tushare as ts
+            import tinyshare as ts
         except ImportError:
             print("tushare 未安装，请执行: pip install tushare")
             return None
@@ -312,7 +312,7 @@ class LingxiaoASignalPipeline:
         ts_code = f"{symbol}.{ts_exchange}"
 
         # tushare token 和自定义 API
-        token = "46bccdd833f7437fc6cf7a65f1c2190b56520905f08758b30213a097f9a3"
+        token = "bNP3yb6kn4CCht3IGVh96GjeRvh72t78FWDwPFe0n2yF2X0w89KsSFjOc54c8a35"
         pro = ts.pro_api(token)
         pro._DataApi__token = token
         pro._DataApi__http_url = 'http://lianghua.nanyangqiankun.top'

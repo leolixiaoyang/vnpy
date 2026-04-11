@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 import polars as pl
-import tushare as ts
+import tinyshare as ts
 
 # 添加项目路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -42,7 +42,7 @@ def download_data(ts_code: str, start_date: str, end_date: str) -> pl.DataFrame:
         return pl.read_parquet(cache_file)
     
     # 下载新数据
-    TUSHARE_TOKEN = os.getenv("TUSHARE_TOKEN", "a96ef9108067fe2b72a787c7d0e6a6974e6f05fd43fa3050497acdb4")
+    TUSHARE_TOKEN = os.getenv("TUSHARE_TOKEN", "bNP3yb6kn4CCht3IGVh96GjeRvh72t78FWDwPFe0n2yF2X0w89KsSFjOc54c8a35")
     ts.set_token(TUSHARE_TOKEN)
     pro = ts.pro_api()
     
