@@ -21,36 +21,46 @@ START_DATE = "20180101"
 END_DATE = "20260410"
 INITIAL_CAPITAL = 1_000_000
 
-# 简化股票池
-STOCK_POOL = [
-    "000001.SZ", "000002.SZ", "600000.SH", "600036.SH", "600519.SH",
-    "601318.SH", "000333.SZ", "000651.SZ", "000858.SZ", "002304.SZ"
-]
+# 简化股票池 - 从中证1000动态获取，但限制数量
+INDEX_CODE = "000852.SH"  # 中证1000
+MAX_STOCKS = 50  # 限制拉取数量，避免内存问题
 
 def download_data():
     """下载所有数据"""
     ts.set_token(TUSHARE_TOKEN)
     pro = ts.pro_api()
     
+    # 动态获取中证1000成分股
+    print(f"获取 {INDEX_CODE} 成分股...")
+    df_index = pro.index_weight(index_code=INDEX_CODE, start_date="20240101")
+    latest_date = df_index['trade_date'].max()
+    latest_df = df_index[df_index['trade_date'] == latest_date]
+    stock_pool = list(latest_df['con_code'].unique())[:MAX_STOCKS]
+    print(f"股票池: {len(stock_pool)} 只 (中证1000前{MAX_STOCKS}只)")
+    
     frames = []
     
     # 下载股票数据
     print("下载股票数据...")
-    for ts_code in STOCK_POOL:
-        print(f"  {ts_code}")
-        df = pro.daily(ts_code=ts_code, start_date=START_DATE, end_date=END_DATE)
-        if len(df) > 0:
-            # 获取基本面数据
-            try:
-                basic = pro.daily_basic(ts_code=ts_code, start_date=START_DATE, end_date=END_DATE,
-                                       fields="ts_code,trade_date,pe,pb,total_mv,circ_mv")
-                if len(basic) > 0:
-                    df = df.merge(basic, on=["ts_code", "trade_date"], how="left")
-            except:
-                pass
-            
-            df["market_cap"] = df.get("circ_mv", df["close"] * df["vol"] * 100)
-            frames.append(df)
+    for i, ts_code in enumerate(stock_pool):
+        print(f"  {i+1}/{len(stock_pool)} {ts_code}")
+        try:
+            df = pro.daily(ts_code=ts_code, start_date=START_DATE, end_date=END_DATE)
+            if len(df) > 0:
+                # 获取基本面数据
+                try:
+                    basic = pro.daily_basic(ts_code=ts_code, start_date=START_DATE, end_date=END_DATE,
+                                           fields="ts_code,trade_date,pe,pb,total_mv,circ_mv")
+                    if len(basic) > 0:
+                        df = df.merge(basic, on=["ts_code", "trade_date"], how="left")
+                except:
+                    pass
+                
+                df["market_cap"] = df.get("circ_mv", df["close"] * df["vol"] * 100)
+                frames.append(df)
+        except Exception as e:
+            print(f"    跳过: {e}")
+            continue
     
     # 下载黄金ETF
     print("下载黄金ETF...")
@@ -129,7 +139,7 @@ def main():
     print("=" * 50)
     print("小市值杠铃策略 - 简化回测")
     print("=" * 50)
-    print(f"股票池: {len(STOCK_POOL)} 只")
+    print(f"股票池来源: {INDEX_CODE} (中证1000)")
     print(f"时间范围: 2018-01 ~ 2026-04")
     print(f"初始资金: {INITIAL_CAPITAL}")
     print(f"配置: 50%股票 + 50%黄金ETF")

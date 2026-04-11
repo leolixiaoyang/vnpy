@@ -28,10 +28,12 @@ from config import (  # noqa: E402
     SIGNAL_CACHE,
     START_DATE,
     STRATEGY_PARAMS,
+    STOCK_POOL_MODE,
     TS_STOCK_POOL,
     TUSHARE_TOKEN,
     USE_SIGNAL_CACHE,
     VT_SYMBOLS,
+    get_dynamic_stock_pool,
 )
 from signal_pipeline import SignalConfig, SmallCapSignalPipeline  # noqa: E402
 from vnpy.alpha import AlphaLab, BacktestingEngine  # noqa: E402
@@ -54,9 +56,18 @@ def ensure_contract_settings(lab: AlphaLab, vt_symbols: list[str]) -> None:
 def generate_signal() -> pl.DataFrame:
     """构建策略信号。"""
     token = os.getenv("TUSHARE_TOKEN", TUSHARE_TOKEN)
+    
+    # 根据模式选择股票池
+    if STOCK_POOL_MODE == "dynamic":
+        stock_pool = get_dynamic_stock_pool(token)
+        print(f"使用动态股票池: {len(stock_pool)} 只")
+    else:
+        stock_pool = TS_STOCK_POOL
+        print(f"使用固定股票池: {len(stock_pool)} 只")
+    
     pipeline = SmallCapSignalPipeline(
         SignalConfig(
-            ts_codes=TS_STOCK_POOL,
+            ts_codes=stock_pool,
             start_date=START_DATE,
             end_date=END_DATE,
             token=token,
@@ -151,17 +162,25 @@ def run_backtest() -> dict:
     """运行回测。"""
     lab = AlphaLab(str(LAB_PATH))
 
-    # 策略运行标的 = 股票池 + 黄金ETF
-    all_symbols = list(dict.fromkeys([*VT_SYMBOLS, GOLD_VT_SYMBOL]))
-    ensure_contract_settings(lab, all_symbols)
-    ensure_bar_data(lab, all_symbols)
-
+    # 先生成或加载信号
     if USE_SIGNAL_CACHE and SIGNAL_CACHE.exists():
         print(f"加载信号缓存: {SIGNAL_CACHE}")
         signal_df = pl.read_parquet(SIGNAL_CACHE)
     else:
         print("生成信号数据...")
         signal_df = generate_signal()
+
+    # 从信号数据中提取 vt_symbols（动态股票池）
+    if not signal_df.is_empty() and "vt_symbol" in signal_df.columns:
+        stock_symbols = list(signal_df["vt_symbol"].unique())
+    else:
+        stock_symbols = VT_SYMBOLS  # 回退到固定池
+    
+    all_symbols = list(dict.fromkeys([*stock_symbols, GOLD_VT_SYMBOL]))
+    print(f"回测标的: {len(all_symbols)} 只")
+    
+    ensure_contract_settings(lab, all_symbols)
+    ensure_bar_data(lab, all_symbols)
 
     engine = BacktestingEngine(lab)
     engine.set_parameters(

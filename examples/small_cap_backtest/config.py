@@ -9,8 +9,11 @@ ROOT_PATH: Path = Path(__file__).resolve().parents[2]
 LAB_PATH: Path = ROOT_PATH / "lab_data" / "small_cap"
 SIGNAL_CACHE: Path = LAB_PATH / "signal" / "small_cap_signal.parquet"
 
-# 默认股票池：可直接替换成你的中证500/全A样本
-TS_STOCK_POOL: list[str] = [
+# 股票池模式："static" 使用固定股票池，"dynamic" 使用中证500成分股
+STOCK_POOL_MODE: str = "dynamic"  # 改成 "dynamic" 就会用中证500
+
+# 固定股票池（仅当 STOCK_POOL_MODE="static" 时使用）
+STATIC_STOCK_POOL: list[str] = [
     "000001.SZ",
     "000002.SZ",
     "000063.SZ",
@@ -32,6 +35,31 @@ TS_STOCK_POOL: list[str] = [
     "600309.SH",
     "600887.SH",
 ]
+
+# 动态股票池：中证1000成分股（当 STOCK_POOL_MODE="dynamic" 时使用）
+DYNAMIC_INDEX_CODE: str = "000852.SH"  # 中证1000
+
+def get_dynamic_stock_pool(token: str, index_code: str = DYNAMIC_INDEX_CODE) -> list[str]:
+    """动态获取指数成分股作为股票池。"""
+    import tinyshare as ts
+    ts.set_token(token)
+    pro = ts.pro_api()
+    
+    # 获取最新成分股
+    df = pro.index_weight(index_code=index_code, start_date="20240101")
+    if df is None or len(df) == 0:
+        return STATIC_STOCK_POOL  # 失败时回退到固定池
+    
+    # 去重，取最新日期的成分股
+    latest_date = df["trade_date"].max()
+    latest_df = df[df["trade_date"] == latest_date]
+    stock_pool = list(latest_df["con_code"].unique())
+    
+    print(f"动态股票池: {len(stock_pool)} 只 (来自 {index_code} 成分股)")
+    return stock_pool
+
+# 根据模式选择股票池
+TS_STOCK_POOL: list[str] = STATIC_STOCK_POOL  # 默认值，运行时可能被更新
 
 VT_SYMBOLS: list[str] = [
     ts_code.replace(".SZ", ".SZSE").replace(".SH", ".SSE")
