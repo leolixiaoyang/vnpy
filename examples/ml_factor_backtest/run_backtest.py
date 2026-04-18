@@ -56,7 +56,7 @@ def generate_signal() -> pl.DataFrame:
     token = os.getenv("TUSHARE_TOKEN", TUSHARE_TOKEN)
 
     if STOCK_POOL_MODE == "dynamic":
-        stock_pool = get_dynamic_stock_pool(token)
+        stock_pool = get_dynamic_stock_pool()
         print(f"使用动态股票池: {len(stock_pool)} 只")
     else:
         stock_pool = TS_STOCK_POOL

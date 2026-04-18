@@ -153,30 +153,59 @@ class MlFactorSignalPipeline:
                 )
 
             # ====== 基本面因子列映射 ======
+            # 将财务数据列转为 Float64（Tushare 返回的可能是 String）
+            float_cols_to_cast = [
+                "admin_exp", "revenue", "admin_exp_gr", "net_profit_margin_ttm",
+                "netprofit_margin", "n_income", "undistributed_profit", "total_share",
+                "undistr_porfit", "total_profit", "oper_cost", "inventory",
+                "total_liab", "total_assets", "oper_revenue",
+                "non_oper_income", "non_oper_exp", "extra_item",
+                "cfps", "ncfps", "n_cashflow_act",
+                "or_yoy", "debt_to_assets", "circ_mv", "eps",
+            ]
+            for col in float_cols_to_cast:
+                if col in daily_df.columns:
+                    try:
+                        daily_df = daily_df.with_columns(
+                            pl.col(col).cast(pl.Float64, strict=False)
+                        )
+                    except Exception:
+                        pass
 
             # SGAI: 销售管理费用率 = 管理费用 / 营业收入
-            if "admin_exp" in daily_df.columns and "oper_revenue" in daily_df.columns:
+            if "admin_exp" in daily_df.columns and "revenue" in daily_df.columns:
                 daily_df = daily_df.with_columns(
-                    (pl.col("admin_exp") / pl.col("oper_revenue")).alias("sgai")
+                    (pl.col("admin_exp") / pl.col("revenue")).alias("sgai")
+                )
+            elif "admin_exp_gr" in daily_df.columns:
+                # 如果直接用 fina_indicator 的管理费用率
+                daily_df = daily_df.with_columns(
+                    pl.col("admin_exp_gr").alias("sgai")
                 )
 
             # net_profit_margin_ttm: 净利率 TTM
-            if "net_profit_margin_ttm" in daily_df.columns:
-                pass  # 已由 fina_indicator 提供
-            elif "n_income" in daily_df.columns and "oper_revenue" in daily_df.columns:
-                daily_df = daily_df.with_columns(
-                    (pl.col("n_income") / pl.col("oper_revenue")).alias("net_profit_margin_ttm")
-                )
+            if "net_profit_margin_ttm" not in daily_df.columns:
+                if "netprofit_margin" in daily_df.columns:
+                    daily_df = daily_df.with_columns(
+                        pl.col("netprofit_margin").alias("net_profit_margin_ttm")
+                    )
+                elif "n_income" in daily_df.columns and "revenue" in daily_df.columns:
+                    daily_df = daily_df.with_columns(
+                        (pl.col("n_income") / pl.col("revenue")).alias("net_profit_margin_ttm")
+                    )
 
             # retained_profit_per_share: 每股未分配利润
             if "bps_urps" not in daily_df.columns:
-                # 用 (未分配利润 / 总股本) 估算
                 if "undistributed_profit" in daily_df.columns and "total_share" in daily_df.columns:
                     daily_df = daily_df.with_columns(
                         (pl.col("undistributed_profit") / pl.col("total_share")).alias("retained_profit_per_share")
                     )
+                elif "undistr_porfit" in daily_df.columns and "total_share" in daily_df.columns:
+                    daily_df = daily_df.with_columns(
+                        (pl.col("undistr_porfit") / pl.col("total_share")).alias("retained_profit_per_share")
+                    )
 
-            # total_profit_to_cost_ratio: 成本费用利润率 = 利润总额 / (营业成本+费用)
+            # total_profit_to_cost_ratio: 成本费用利润率 = 利润总额 / 营业成本
             if "total_profit" in daily_df.columns and "oper_cost" in daily_df.columns:
                 daily_df = daily_df.with_columns(
                     (pl.col("total_profit") / pl.col("oper_cost")).alias("total_profit_to_cost_ratio")
@@ -195,10 +224,10 @@ class MlFactorSignalPipeline:
                         (pl.col("total_liab") / pl.col("total_assets")).alias("debt_to_assets")
                     )
 
-            # operating_cost_to_revenue_ratio: 销售成本率
-            if "oper_cost" in daily_df.columns and "oper_revenue" in daily_df.columns:
+            # operating_cost_to_revenue_ratio: 销售成本率 = 营业成本 / 营业收入
+            if "oper_cost" in daily_df.columns and "revenue" in daily_df.columns:
                 daily_df = daily_df.with_columns(
-                    (pl.col("oper_cost") / pl.col("oper_revenue")).alias("operating_cost_to_revenue_ratio")
+                    (pl.col("oper_cost") / pl.col("revenue")).alias("operating_cost_to_revenue_ratio")
                 )
 
             # sales_growth_5y: 5年营收增长率 (用年化增速近似)
@@ -208,20 +237,31 @@ class MlFactorSignalPipeline:
                 )
 
             # cashflow_per_share_ttm: 每股现金流量净额 TTM
-            if "ncfps" in daily_df.columns:
+            if "cfps" in daily_df.columns:
+                daily_df = daily_df.with_columns(
+                    pl.col("cfps").alias("cashflow_per_share_ttm")
+                )
+            elif "ncfps" in daily_df.columns:
                 daily_df = daily_df.with_columns(
                     pl.col("ncfps").alias("cashflow_per_share_ttm")
                 )
-            elif "n_cashflow_act" in daily_df.columns:
-                if "total_share" in daily_df.columns:
-                    daily_df = daily_df.with_columns(
-                        (pl.col("n_cashflow_act") / pl.col("total_share")).alias("cashflow_per_share_ttm")
-                    )
+            elif "n_cashflow_act" in daily_df.columns and "total_share" in daily_df.columns:
+                daily_df = daily_df.with_columns(
+                    (pl.col("n_cashflow_act") / pl.col("total_share")).alias("cashflow_per_share_ttm")
+                )
 
-            # non_operating_net_profit_ttm: 营业外收支净额 TTM
-            if "non_operate_profit" in daily_df.columns:
+            # non_operating_net_profit_ttm: 营业外收支净额
+            if "non_oper_income" in daily_df.columns and "non_oper_exp" in daily_df.columns:
+                daily_df = daily_df.with_columns(
+                    (pl.col("non_oper_income") - pl.col("non_oper_exp")).alias("non_operating_net_profit_ttm")
+                )
+            elif "non_operate_profit" in daily_df.columns:
                 daily_df = daily_df.with_columns(
                     pl.col("non_operate_profit").alias("non_operating_net_profit_ttm")
+                )
+            elif "extra_item" in daily_df.columns:
+                daily_df = daily_df.with_columns(
+                    pl.col("extra_item").alias("non_operating_net_profit_ttm")
                 )
 
             # market_cap: 流通市值
@@ -334,76 +374,112 @@ class MlFactorSignalPipeline:
         return df
 
     def _merge_fina_indicator(self, pro, ts_code: str, df: pl.DataFrame) -> pl.DataFrame:
-        """合并财务指标。"""
+        """合并财务指标（asof_join 匹配最近财报日）。"""
         try:
             fina = pro.fina_indicator(
                 ts_code=ts_code,
                 start_date=self._to_ts_date(self.config.start_date),
                 end_date=self._to_ts_date(self.config.end_date),
-                fields="ts_code,end_date,roe,eps_dt,debt_to_assets,"
-                       "bps_urps,or_yoy,ncfps,admin_exp,n_income,oper_revenue,"
-                       "net_profit_margin,non_operate_profit",
             )
-            if fina and len(fina) > 0:
-                fina_df = pl.DataFrame(fina).rename({"end_date": "trade_date"})
-                # 列名对齐
-                rename_map = {
-                    "net_profit_margin": "net_profit_margin_ttm",
-                }
-                fina_df = fina_df.rename(rename_map)
-                df = df.join(fina_df, on=["ts_code", "trade_date"], how="left")
-        except Exception:
-            pass
+            if fina is None or len(fina) == 0:
+                print(f"  [WARN] fina_indicator returned empty for {ts_code}")
+                return df
+            fina_df = pl.DataFrame(fina).rename({
+                "end_date": "report_date",
+                "netprofit_margin": "net_profit_margin_ttm",
+                "adminexp_of_gr": "admin_exp_gr",
+            }).sort("report_date")
+            df = df.with_columns(pl.col("trade_date").cast(pl.Utf8))
+            fina_df = fina_df.with_columns(pl.col("report_date").cast(pl.Utf8))
+            df = df.join_asof(
+                fina_df,
+                left_on="trade_date",
+                right_on="report_date",
+                by="ts_code",
+                strategy="backward",
+                suffix="_fina",
+            )
+        except Exception as e:
+            print(f"  [ERROR] fina_indicator failed for {ts_code}: {e}")
         return df
 
     def _merge_cashflow(self, pro, ts_code: str, df: pl.DataFrame) -> pl.DataFrame:
-        """合并现金流量表。"""
+        """合并现金流量表（asof_join）。"""
         try:
             cash = pro.cashflow(
                 ts_code=ts_code,
                 start_date=self._to_ts_date(self.config.start_date),
                 end_date=self._to_ts_date(self.config.end_date),
-                fields="ts_code,end_date,n_cashflow_act",
             )
-            if cash and len(cash) > 0:
-                cash_df = pl.DataFrame(cash).rename({"end_date": "trade_date"})
-                df = df.join(cash_df, on=["ts_code", "trade_date"], how="left")
-        except Exception:
-            pass
+            if cash is None or len(cash) == 0:
+                return df
+            cash_df = pl.DataFrame(cash).rename({"end_date": "report_date"}).sort("report_date")
+            df = df.with_columns(pl.col("trade_date").cast(pl.Utf8))
+            cash_df = cash_df.with_columns(pl.col("report_date").cast(pl.Utf8))
+            df = df.join_asof(
+                cash_df,
+                left_on="trade_date",
+                right_on="report_date",
+                by="ts_code",
+                strategy="backward",
+                suffix="_cash",
+            )
+        except Exception as e:
+            print(f"  [ERROR] cashflow failed for {ts_code}: {e}")
         return df
 
     def _merge_income(self, pro, ts_code: str, df: pl.DataFrame) -> pl.DataFrame:
-        """合并利润表。"""
+        """合并利润表（asof_join）。"""
         try:
             income = pro.income(
                 ts_code=ts_code,
                 start_date=self._to_ts_date(self.config.start_date),
                 end_date=self._to_ts_date(self.config.end_date),
-                fields="ts_code,end_date,n_income,total_profit,oper_cost,"
-                       "oper_revenue,admin_exp",
             )
-            if income and len(income) > 0:
-                income_df = pl.DataFrame(income).rename({"end_date": "trade_date"})
-                df = df.join(income_df, on=["ts_code", "trade_date"], how="left")
-        except Exception:
-            pass
+            if income is None or len(income) == 0:
+                return df
+            income_df = pl.DataFrame(income).rename({"end_date": "report_date"}).sort("report_date")
+            df = df.with_columns(pl.col("trade_date").cast(pl.Utf8))
+            income_df = income_df.with_columns(pl.col("report_date").cast(pl.Utf8))
+            df = df.join_asof(
+                income_df,
+                left_on="trade_date",
+                right_on="report_date",
+                by="ts_code",
+                strategy="backward",
+                suffix="_inc",
+            )
+        except Exception as e:
+            print(f"  [ERROR] income failed for {ts_code}: {e}")
         return df
 
     def _merge_balance(self, pro, ts_code: str, df: pl.DataFrame) -> pl.DataFrame:
-        """合并资产负债表。"""
+        """合并资产负债表（asof_join）。"""
         try:
             balance = pro.balancesheet(
                 ts_code=ts_code,
                 start_date=self._to_ts_date(self.config.start_date),
                 end_date=self._to_ts_date(self.config.end_date),
-                fields="ts_code,end_date,total_liab,total_assets,inventory,"
-                       "undistributed_profit,total_share",
             )
-            if balance and len(balance) > 0:
-                balance_df = pl.DataFrame(balance).rename({"end_date": "trade_date"})
-                df = df.join(balance_df, on=["ts_code", "trade_date"], how="left")
-        except Exception:
-            pass
+            if balance is None or len(balance) == 0:
+                return df
+            balance_df = pl.DataFrame(balance).rename({
+                "end_date": "report_date",
+                "undistr_porfit": "undistributed_profit",
+                "inventories": "inventory",
+            }).sort("report_date")
+            df = df.with_columns(pl.col("trade_date").cast(pl.Utf8))
+            balance_df = balance_df.with_columns(pl.col("report_date").cast(pl.Utf8))
+            df = df.join_asof(
+                balance_df,
+                left_on="trade_date",
+                right_on="report_date",
+                by="ts_code",
+                strategy="backward",
+                suffix="_bal",
+            )
+        except Exception as e:
+            print(f"  [ERROR] balance failed for {ts_code}: {e}")
         return df
 
     # ==================== 技术指标计算 ====================

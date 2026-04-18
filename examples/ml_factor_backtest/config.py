@@ -23,19 +23,15 @@ STATIC_STOCK_POOL: list[str] = [
 DYNAMIC_INDEX_CODE: str = "000852.SH"  # 中证1000
 
 
-def get_dynamic_stock_pool(token: str, index_code: str = DYNAMIC_INDEX_CODE) -> list[str]:
-    """动态获取指数成分股作为股票池。"""
-    import tinyshare as ts
-    ts.set_token(token)
-    pro = ts.pro_api()
+def get_dynamic_stock_pool(index_code: str = DYNAMIC_INDEX_CODE) -> list[str]:
+    """动态获取指数成分股作为股票池（使用 akshare）。"""
+    import akshare as ak
 
-    df = pro.index_weight(index_code=index_code, start_date="20240101")
-    if df is None or len(df) == 0:
-        return STATIC_STOCK_POOL
-
-    latest_date = df["trade_date"].max()
-    latest_df = df[df["trade_date"] == latest_date]
-    stock_pool = list(latest_df["con_code"].unique())
+    df = ak.index_stock_cons(symbol=index_code)
+    df['symbol'] = df['品种代码'].apply(ak.stock_a_code_to_symbol)
+    df['ts_code'] = df['symbol'].str[2:] + '.' + df['symbol'].str[:2].str.upper()
+    # 去重保留唯一 ts_code
+    stock_pool = df.drop_duplicates(subset=['ts_code'])['ts_code'].tolist()
     print(f"动态股票池: {len(stock_pool)} 只 (来自 {index_code} 成分股)")
     return stock_pool
 
