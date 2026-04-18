@@ -376,15 +376,21 @@ class MlFactorSignalPipeline:
     def _merge_fina_indicator(self, pro, ts_code: str, df: pl.DataFrame) -> pl.DataFrame:
         """合并财务指标（asof_join 匹配最近财报日）。"""
         try:
-            fina = pro.fina_indicator(
-                ts_code=ts_code,
-                start_date=self._to_ts_date(self.config.start_date),
-                end_date=self._to_ts_date(self.config.end_date),
-            )
-            if fina is None or len(fina) == 0:
-                print(f"  [WARN] fina_indicator returned empty for {ts_code}")
+            fina = pro.fina_indicator(ts_code=ts_code)
+            if fina is None or (hasattr(fina, "empty") and fina.empty):
                 return df
-            fina_df = pl.DataFrame(fina).rename({
+            import pandas as pd
+            if isinstance(fina, pd.DataFrame):
+                fina_df = pl.from_pandas(fina)
+            else:
+                fina_df = pl.DataFrame(fina)
+            # 按报告期过滤（start_date/end_date 是公告日，不是报告期）
+            start = self._to_ts_date(self.config.start_date)
+            end = self._to_ts_date(self.config.end_date)
+            fina_df = fina_df.filter((pl.col("end_date") >= start) & (pl.col("end_date") <= end))
+            if fina_df.is_empty():
+                return df
+            fina_df = fina_df.rename({
                 "end_date": "report_date",
                 "netprofit_margin": "net_profit_margin_ttm",
                 "adminexp_of_gr": "admin_exp_gr",
@@ -406,14 +412,20 @@ class MlFactorSignalPipeline:
     def _merge_cashflow(self, pro, ts_code: str, df: pl.DataFrame) -> pl.DataFrame:
         """合并现金流量表（asof_join）。"""
         try:
-            cash = pro.cashflow(
-                ts_code=ts_code,
-                start_date=self._to_ts_date(self.config.start_date),
-                end_date=self._to_ts_date(self.config.end_date),
-            )
-            if cash is None or len(cash) == 0:
+            cash = pro.cashflow(ts_code=ts_code)
+            if cash is None or (hasattr(cash, "empty") and cash.empty):
                 return df
-            cash_df = pl.DataFrame(cash).rename({"end_date": "report_date"}).sort("report_date")
+            import pandas as pd
+            if isinstance(cash, pd.DataFrame):
+                cash_df = pl.from_pandas(cash)
+            else:
+                cash_df = pl.DataFrame(cash)
+            start = self._to_ts_date(self.config.start_date)
+            end = self._to_ts_date(self.config.end_date)
+            cash_df = cash_df.filter((pl.col("end_date") >= start) & (pl.col("end_date") <= end))
+            if cash_df.is_empty():
+                return df
+            cash_df = cash_df.rename({"end_date": "report_date"}).sort("report_date")
             df = df.with_columns(pl.col("trade_date").cast(pl.Utf8))
             cash_df = cash_df.with_columns(pl.col("report_date").cast(pl.Utf8))
             df = df.join_asof(
@@ -431,14 +443,20 @@ class MlFactorSignalPipeline:
     def _merge_income(self, pro, ts_code: str, df: pl.DataFrame) -> pl.DataFrame:
         """合并利润表（asof_join）。"""
         try:
-            income = pro.income(
-                ts_code=ts_code,
-                start_date=self._to_ts_date(self.config.start_date),
-                end_date=self._to_ts_date(self.config.end_date),
-            )
-            if income is None or len(income) == 0:
+            income = pro.income(ts_code=ts_code)
+            if income is None or (hasattr(income, "empty") and income.empty):
                 return df
-            income_df = pl.DataFrame(income).rename({"end_date": "report_date"}).sort("report_date")
+            import pandas as pd
+            if isinstance(income, pd.DataFrame):
+                income_df = pl.from_pandas(income)
+            else:
+                income_df = pl.DataFrame(income)
+            start = self._to_ts_date(self.config.start_date)
+            end = self._to_ts_date(self.config.end_date)
+            income_df = income_df.filter((pl.col("end_date") >= start) & (pl.col("end_date") <= end))
+            if income_df.is_empty():
+                return df
+            income_df = income_df.rename({"end_date": "report_date"}).sort("report_date")
             df = df.with_columns(pl.col("trade_date").cast(pl.Utf8))
             income_df = income_df.with_columns(pl.col("report_date").cast(pl.Utf8))
             df = df.join_asof(
@@ -456,14 +474,20 @@ class MlFactorSignalPipeline:
     def _merge_balance(self, pro, ts_code: str, df: pl.DataFrame) -> pl.DataFrame:
         """合并资产负债表（asof_join）。"""
         try:
-            balance = pro.balancesheet(
-                ts_code=ts_code,
-                start_date=self._to_ts_date(self.config.start_date),
-                end_date=self._to_ts_date(self.config.end_date),
-            )
-            if balance is None or len(balance) == 0:
+            balance = pro.balancesheet(ts_code=ts_code)
+            if balance is None or (hasattr(balance, "empty") and balance.empty):
                 return df
-            balance_df = pl.DataFrame(balance).rename({
+            import pandas as pd
+            if isinstance(balance, pd.DataFrame):
+                balance_df = pl.from_pandas(balance)
+            else:
+                balance_df = pl.DataFrame(balance)
+            start = self._to_ts_date(self.config.start_date)
+            end = self._to_ts_date(self.config.end_date)
+            balance_df = balance_df.filter((pl.col("end_date") >= start) & (pl.col("end_date") <= end))
+            if balance_df.is_empty():
+                return df
+            balance_df = balance_df.rename({
                 "end_date": "report_date",
                 "undistr_porfit": "undistributed_profit",
                 "inventories": "inventory",

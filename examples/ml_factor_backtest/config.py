@@ -23,14 +23,33 @@ STATIC_STOCK_POOL: list[str] = [
 DYNAMIC_INDEX_CODE: str = "000852.SH"  # 中证1000
 
 
+def _code_to_ts_code(code: str) -> str:
+    """将 6 位数字代码（如 000012）转换为 ts_code 格式（如 000012.SZ）。"""
+    # 去掉可能的前缀（sz/sh）
+    code = code.lower().lstrip("shsz")
+    if code.startswith(("6", "9")):
+        return f"{code}.SH"
+    else:
+        return f"{code}.SZ"
+
+
 def get_dynamic_stock_pool(index_code: str = DYNAMIC_INDEX_CODE) -> list[str]:
     """动态获取指数成分股作为股票池（使用 akshare）。"""
     import akshare as ak
 
-    df = ak.index_stock_cons(symbol=index_code)
-    df['symbol'] = df['品种代码'].apply(ak.stock_a_code_to_symbol)
-    df['ts_code'] = df['symbol'].str[2:] + '.' + df['symbol'].str[:2].str.upper()
-    # 去重保留唯一 ts_code
+    # 优先使用 csindex 源（中证指数官网数据，含权重）
+    try:
+        df = ak.index_stock_cons_weight_csindex(symbol=index_code[:6])
+        df['ts_code'] = df['成分券代码'].apply(_code_to_ts_code)
+        stock_pool = df.drop_duplicates(subset=['ts_code'])['ts_code'].tolist()
+        print(f"动态股票池: {len(stock_pool)} 只 (来自 {index_code} 成分股, csindex源)")
+        return stock_pool
+    except Exception:
+        pass
+
+    # 回退到基本成分股列表
+    df = ak.index_stock_cons(symbol=index_code[:6])
+    df['ts_code'] = df['品种代码'].apply(_code_to_ts_code)
     stock_pool = df.drop_duplicates(subset=['ts_code'])['ts_code'].tolist()
     print(f"动态股票池: {len(stock_pool)} 只 (来自 {index_code} 成分股)")
     return stock_pool
