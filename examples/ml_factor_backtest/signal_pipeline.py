@@ -71,6 +71,7 @@ class MlFactorSignalPipeline:
 
             daily_df = pl.DataFrame(daily).sort("trade_date")
 
+
             # 合并基本面数据
             daily_df = self._merge_daily_basic(pro, ts_code, daily_df)
             daily_df = self._merge_fina_indicator(pro, ts_code, daily_df)
