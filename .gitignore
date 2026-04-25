@@ -40,4 +40,5 @@ _templates
 
 # Alpha
 lab/
+lab_data/
 /.mypy_cache
