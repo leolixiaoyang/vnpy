@@ -258,7 +258,7 @@ class BacktestingEngine:
         positive_balance: bool = False
 
         # Calculate capital-related metrics
-        df: pl.DataFrame = self.daily_df
+        df: pl.DataFrame | None = getattr(self, "daily_df", None)
 
         if df is not None:
             df = df.with_columns(
@@ -778,6 +778,48 @@ class BacktestingEngine:
     def get_all_daily_results(self) -> list["PortfolioDailyResult"]:
         """Get all daily profit and loss information"""
         return list(self.daily_results.values())
+
+    def get_history_bars(self, vt_symbol: str, n: int) -> list[BarData]:
+        """Get last n bars for a symbol based on current datetime"""
+        if not self.datetime:
+            return []
+
+        bars: list[BarData] = []
+        dts: list[datetime] = sorted(self.dts)
+
+        # Find current position in time series
+        try:
+            current_idx = dts.index(self.datetime)
+        except ValueError:
+            return []
+
+        # Collect up to n bars going backwards
+        for i in range(current_idx, -1, -1):
+            bar: BarData | None = self.history_data.get((dts[i], vt_symbol), None)
+            if bar:
+                bars.append(bar)
+            if len(bars) >= n:
+                break
+
+        bars.reverse()
+        return bars
+
+    def get_prev_bar(self, vt_symbol: str) -> BarData | None:
+        """Get the previous bar for a symbol"""
+        if not self.datetime:
+            return None
+
+        dts: list[datetime] = sorted(self.dts)
+        try:
+            current_idx = dts.index(self.datetime)
+        except ValueError:
+            return None
+
+        if current_idx <= 0:
+            return None
+
+        prev_dt = dts[current_idx - 1]
+        return self.history_data.get((prev_dt, vt_symbol), None)
 
     def get_cash_available(self) -> float:
         """Get current available cash"""

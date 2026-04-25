@@ -203,3 +203,11 @@ class AlphaStrategy(metaclass=ABCMeta):
     def get_cash(self) -> float:
         """Legacy compatibility method"""
         return self.get_cash_available()
+
+    def get_history_bars(self, vt_symbol: str, n: int) -> list[BarData]:
+        """Get last n bars for a symbol"""
+        return self.strategy_engine.get_history_bars(vt_symbol, n)
+
+    def get_prev_bar(self, vt_symbol: str) -> BarData | None:
+        """Get the previous bar for a symbol"""
+        return self.strategy_engine.get_prev_bar(vt_symbol)
