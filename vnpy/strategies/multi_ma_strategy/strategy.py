@@ -84,6 +84,8 @@ class MultiMaStrategy(AlphaStrategy):
         if self.use_next_day and self.pending_order:
             self._execute_pending_order(bar)
             self.execute_trading(bars, price_add=self.price_add)
+            # 订单已发送，等待次日撮合后再判断新信号
+            return
 
         # 2. 更新均线（用今天的收盘价计算）
         self._update_ma_values(vt_symbol)
