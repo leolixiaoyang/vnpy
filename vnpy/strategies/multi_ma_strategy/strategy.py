@@ -19,6 +19,10 @@
 
 from vnpy.trader.object import BarData, TradeData
 from vnpy.trader.utility import round_to
+from vnpy.trader.constant import Direction
+
+import numpy as np
+import talib
 
 from vnpy.alpha import AlphaStrategy
 
@@ -35,6 +39,9 @@ class MultiMaStrategy(AlphaStrategy):
     price_add: float = 0.05               # 下单价格偏移
     use_next_day: bool = True             # T+1 交易模式
     slippage: float = 0.001               # 滑点比例，默认 0.1%
+    stop_loss_rate: float = 0.08          # 止损比例，默认 8%
+    adx_period: int = 14                  # ADX 计算周期
+    adx_threshold: float = 20.0           # ADX 趋势强度阈值
 
     def on_init(self) -> None:
         """策略初始化"""
@@ -45,15 +52,23 @@ class MultiMaStrategy(AlphaStrategy):
         self.bullish_history: list[bool] = []
         self.bearish_history: list[bool] = []
         self.pending_order: dict | None = None  # T 日信号，T+1 日执行
+        self.buy_price: float = 0.0             # 持仓入场价（止损基准）
+        self.adx_value: float = 0.0             # 当前 ADX 值
 
         self.write_log("多均线择时策略初始化")
         self.write_log(f"均线周期: {self.ma_periods}")
         self.write_log(f"T+1 模式: {self.use_next_day}, 滑点: {self.slippage*100:.2f}%")
+        self.write_log(f"止损: {self.stop_loss_rate*100:.2f}%, ADX({self.adx_period}) 阈值: {self.adx_threshold}")
 
     def on_trade(self, trade: TradeData) -> None:
-        """成交回调"""
+        """成交回调 -- 记录入场价用于止损"""
         pos: float = self.get_pos(trade.vt_symbol)
         self.write_log(f"成交: {trade.vt_symbol}, 方向={trade.direction.value}, 价格={trade.price}, 数量={trade.volume}, 持仓={pos}")
+
+        if trade.direction == Direction.LONG:
+            self.buy_price = trade.price
+        elif pos == 0:
+            self.buy_price = 0.0
 
     def on_bars(self, bars: dict[str, BarData]) -> None:
         """K 线回调"""
@@ -73,46 +88,58 @@ class MultiMaStrategy(AlphaStrategy):
         # 2. 更新均线（用今天的收盘价计算）
         self._update_ma_values(vt_symbol)
 
-        # 3. 判断今天信号（写入 pending_order，次日执行）
+        # 3. 计算 ADX（用于趋势过滤）
+        self._update_adx(vt_symbol)
+
+        # 4. 判断今天信号（写入 pending_order，次日执行）
         if not self.use_next_day:
-            # 非 T+1 模式：直接执行
             self._execute_signals(bars)
-        else:
-            # T+1 模式：缓存信号到次日
-            if len(self.bullish_history) < 2:
-                self.bullish_history.append(self._is_bullish())
-                self.bearish_history.append(self._is_bearish())
+            return
+
+        # T+1 模式：缓存信号到次日
+        if len(self.bullish_history) < 2:
+            self.bullish_history.append(self._is_bullish())
+            self.bearish_history.append(self._is_bearish())
+            return
+        if any(len(self.ma_history[p]) < 3 for p in [5, 10, 20]):
+            return
+
+        is_bull = self._is_bullish()
+        is_bear = self._is_bearish()
+        self.bullish_history.append(is_bull)
+        self.bearish_history.append(is_bear)
+
+        current_pos: float = self.get_pos(vt_symbol)
+
+        # ========== 止损检查（最高优先级，覆盖现有 pending_order） ==========
+        if self._check_stop_loss(current_pos, bar):
+            return
+
+        # 已有待执行订单，不覆盖
+        if self.pending_order:
+            return
+
+        # ---------- 多头后死叉 → 卖出 ----------
+        if current_pos > 0 and self._is_cross_down():
+            self._set_pending_sell_order(bar, reason="死叉")
+
+        # ---------- 空头后金叉 → 买入（ADX 过滤） ----------
+        elif current_pos == 0 and self._is_cross_up():
+            if not self._adx_allow_buy():
+                self.write_log(f"[过滤] 金叉信号被 ADX 过滤 (ADX={self.adx_value:.1f})")
                 return
-            if any(len(self.ma_history[p]) < 3 for p in [5, 10, 20]):
+            self._set_pending_buy_order(bar, reason="金叉")
+
+        # ---------- 多头排列 → 买入（ADX 过滤） ----------
+        elif current_pos == 0 and is_bull:
+            if not self._adx_allow_buy():
+                self.write_log(f"[过滤] 多头排列信号被 ADX 过滤 (ADX={self.adx_value:.1f})")
                 return
+            self._set_pending_buy_order(bar, reason="多头排列")
 
-            is_bull = self._is_bullish()
-            is_bear = self._is_bearish()
-            self.bullish_history.append(is_bull)
-            self.bearish_history.append(is_bear)
-
-            if self.pending_order:
-                return  # 已有待执行订单，不覆盖
-
-            current_pos: float = self.get_pos(vt_symbol)
-
-            # ---------- 多头后死叉 → 卖出 ----------
-            if current_pos > 0 and self._is_cross_down():
-                self._set_pending_sell_order(bar, reason="死叉")
-
-            # ---------- 空头后金叉 → 买入 ----------
-            elif current_pos == 0 and self._is_cross_up():
-                self._set_pending_buy_order(bar, reason="金叉")
-
-            # ---------- 多头排列 → 买入 ----------
-            elif current_pos == 0 and is_bull:
-                if self._is_struggle():
-                    return
-                self._set_pending_buy_order(bar, reason="多头排列")
-
-            # ---------- 空头排列 → 卖出 ----------
-            elif current_pos > 0 and is_bear:
-                self._set_pending_sell_order(bar, reason="空头排列")
+        # ---------- 空头排列 → 卖出 ----------
+        elif current_pos > 0 and is_bear:
+            self._set_pending_sell_order(bar, reason="空头排列")
 
     # ==================== 信号判断 ====================
 
@@ -148,12 +175,46 @@ class MultiMaStrategy(AlphaStrategy):
         return was_bearish and cross
 
     def _is_struggle(self) -> bool:
+        """判断均线纠缠（V0.2 已弃用，保留以兼容旧配置）"""
         if len(self.ma_history[30]) < 1:
             return False
         diff_10_20 = abs(self._get_ma(10) - self._get_ma(20)) / self._get_ma(20)
         diff_20_30 = abs(self._get_ma(20) - self._get_ma(30)) / self._get_ma(30)
         return (diff_10_20 < self.struggle_threshold_10_20 or
                 diff_20_30 < self.struggle_threshold_20_30)
+
+    def _update_adx(self, vt_symbol: str) -> None:
+        """计算当前 ADX 值"""
+        n = self.adx_period
+        history = self.get_history_bars(vt_symbol, 2 * n)
+        if len(history) < 2 * n - 1:
+            self.adx_value = 0.0
+            return
+
+        high = np.array([b.high_price for b in history])
+        low = np.array([b.low_price for b in history])
+        close = np.array([b.close_price for b in history])
+
+        adx_array = talib.ADX(high, low, close, n)
+        self.adx_value = float(adx_array[-1])
+
+    def _check_stop_loss(self, current_pos: float, bar: BarData) -> bool:
+        """止损检查。触发时设置 pending sell 并返回 True。
+
+        优先级最高：即使已有 pending buy 也会被覆盖。
+        """
+        if current_pos > 0 and self.buy_price > 0:
+            stop_price = self.buy_price * (1 - self.stop_loss_rate)
+            if bar.close_price <= stop_price:
+                self._set_pending_sell_order(bar, reason="止损")
+                return True
+        return False
+
+    def _adx_allow_buy(self) -> bool:
+        """ADX 趋势过滤：低于阈值时不允许买入"""
+        if self.adx_value == 0.0:
+            return True  # 数据不足时放行
+        return self.adx_value >= self.adx_threshold
 
     # ==================== 均线计算 ====================
 
@@ -242,13 +303,24 @@ class MultiMaStrategy(AlphaStrategy):
 
         current_pos: float = self.get_pos(vt_symbol)
 
+        # 止损检查（非 T+1 模式直接执行）
+        if current_pos > 0 and self.buy_price > 0:
+            stop_price = self.buy_price * (1 - self.stop_loss_rate)
+            if bar.close_price <= stop_price:
+                self.set_target(vt_symbol, 0)
+                self.write_log(f"止损 清仓: 入场={self.buy_price:.2f}, 收盘={bar.close_price:.2f}")
+                self.execute_trading(bars, price_add=self.price_add)
+                return
+
         if current_pos > 0 and self._is_cross_down():
             self.set_target(vt_symbol, 0)
             self.write_log("死叉 清仓")
         elif current_pos == 0 and self._is_cross_up():
+            if not self._adx_allow_buy():
+                return
             self._set_buy_target(bar, reason="金叉")
         elif current_pos == 0 and is_bull:
-            if self._is_struggle():
+            if not self._adx_allow_buy():
                 return
             self._set_buy_target(bar, reason="多头排列")
         elif current_pos > 0 and is_bear:

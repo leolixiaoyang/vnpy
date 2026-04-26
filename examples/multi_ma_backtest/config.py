@@ -39,4 +39,8 @@ STRATEGY_PARAMS: dict = {
     "struggle_threshold_20_30": 0.002,
     "cash_ratio": 0.99,
     "price_add": 0.05,
+    # V0.2 新增
+    "stop_loss_rate": 0.08,
+    "adx_period": 14,
+    "adx_threshold": 20.0,
 }
