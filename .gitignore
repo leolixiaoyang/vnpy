@@ -42,3 +42,4 @@ _templates
 lab/
 lab_data/
 /.mypy_cache
+lab_data/multi_ma/multi_ma_equity_curve.png

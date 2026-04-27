@@ -10,10 +10,10 @@ LAB_PATH: Path = ROOT_PATH / "lab_data" / "multi_ma"
 DAILY_BAR_CACHE: Path = LAB_PATH / "daily_bars.parquet"
 
 # 交易标的
-TS_CODE: str = "600196.SH"  # 复星医药
+TS_CODE: str = "688008.SH"  # 澜起科技
 
 # 回测参数
-START_DATE: str = "2018-01-01"
+START_DATE: str = "2025-01-01"
 END_DATE: str = "2026-04-10"
 INTERVAL: Interval = Interval.DAILY
 INITIAL_CAPITAL: int = 1_000_000
@@ -33,7 +33,7 @@ CONTRACT_SETTINGS: dict = {
 
 # 策略参数
 STRATEGY_PARAMS: dict = {
-    "stock": "600196.SSE",
+    "stock": "688008.SSE",
     "ma_periods": [5, 10, 20, 30],
     "struggle_threshold_10_20": 0.003,
     "struggle_threshold_20_30": 0.002,
