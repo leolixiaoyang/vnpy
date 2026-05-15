@@ -1,8 +1,0 @@
-{
-    "000001.SZSE": {
-        "long_rate": 0.0003,
-        "short_rate": 0.0013,
-        "size": 100,
-        "pricetick": 0.01
-    }
-}
