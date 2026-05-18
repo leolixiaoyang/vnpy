@@ -41,8 +41,11 @@ class TinyshareClient:
 
     @staticmethod
     def _cache_file(prefix: str, **kwargs: str) -> Path:
+        import hashlib
         key = "_".join(f"{k}-{v}" for k, v in sorted(kwargs.items()))
         safe = key.replace("/", "-").replace(":", "-").replace(",", "-")
+        if len(safe) > 150:
+            safe = hashlib.md5(key.encode()).hexdigest()[:12]
         return DATA_PATH / f"{prefix}_{safe}.parquet"
 
     def _cached_call(self, prefix: str, params: dict[str, str], fn) -> pd.DataFrame:
@@ -65,6 +68,15 @@ class TinyshareClient:
             "adj": str(adj),
         }
 
+        def _is_index(code: str) -> bool:
+            """判断是否为指数代码"""
+            prefix, suffix = code.split(".")
+            if suffix == "SH" and (prefix.startswith("000") or prefix.startswith("399")):
+                return True  # 上证/中证指数 (000300.SH)
+            if suffix == "SZ" and prefix.startswith("399"):
+                return True  # 深证指数 (399101.SZ)
+            return False
+
         def _call():
             call_kwargs = {
                 "ts_code": ts_code,
@@ -73,7 +85,10 @@ class TinyshareClient:
             }
             if adj:
                 call_kwargs["adj"] = adj
-            if ts_code.startswith("51") or ts_code.startswith("15"):
+            if _is_index(ts_code):
+                return self.pro.index_daily(**call_kwargs)
+            prefix = ts_code.split(".")[0]
+            if prefix.startswith("51") or prefix.startswith("15"):
                 return self.pro.fund_daily(**call_kwargs)
             return self.pro.daily(**call_kwargs)
 
