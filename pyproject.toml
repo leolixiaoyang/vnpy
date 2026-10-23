@@ -1,25 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
 [project]
-name = "all-weather-rotation"
-version = "0.1.0"
-description = "Tinyshare-based all weather rotation backtest"
+name = "quantlab-research"
+version = "0.2.0"
+description = "Independent daily-bar strategy research with Tushare-compatible adapters"
 readme = "README.md"
-requires-python = ">=3.10"
-dependencies = [
-    "numpy>=1.24",
-    "pandas>=2.0",
-    "pyarrow>=14.0",
-    "tinyshare>=0.1.4",
-]
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.24", "pandas>=2.0", "pyarrow>=14"]
 
 [project.optional-dependencies]
-test = [
-    "pytest>=8.0",
-]
+tushare = ["tushare>=1.4"]
+plot = ["matplotlib>=3.7"]
+test = ["pytest>=8", "build>=1.2"]
+
+[project.scripts]
+quantlab = "quantlab.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quantlab"]
 
 [tool.pytest.ini_options]
-pythonpath = [
-    ".",
-    "examples/all_weather_rotation_backtest",
-]
 testpaths = ["tests"]
+pythonpath = ["src", "."]
 addopts = "-q"
+markers = ["live: explicit credentialed provider contract tests"]

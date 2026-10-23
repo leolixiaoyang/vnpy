@@ -1,0 +1,58 @@
+[data]
+provider = "tinyshare"
+snapshot = "../data/all_weather"
+cache = "../.quantlab/cache"
+strict = false
+
+[backtest]
+start = "2018-01-01"
+end = "2026-04-30"
+initial_capital = 1000000
+benchmark = "000300.SH"
+output = "../runs"
+
+[strategy]
+factory = "all_weather_rotation"
+
+[strategy.parameters]
+stock_num = 3
+lookback = 10
+min_listing_days = 375
+stop_loss = 0.08
+big_index = "000300.SH"
+small_index = "399101.SZ"
+funds = ["518880.SH", "513030.SH", "513100.SH", "164824.SZ", "159866.SZ"]
+
+[fees]
+buy_commission = 0.0003
+sell_commission = 0.0003
+minimum_commission = 5.0
+stock_sell_tax = 0.001
+slippage_bps = 0.0
+
+[fallback_pools]
+"000300.SH" = ["600519.SH", "600036.SH", "601318.SH", "600276.SH", "600887.SH", "600030.SH", "600000.SH", "601888.SH", "600309.SH", "601668.SH"]
+"399101.SZ" = ["000001.SZ", "000002.SZ", "000063.SZ", "000333.SZ", "000651.SZ", "000858.SZ", "002304.SZ", "002594.SZ"]
+
+# Fund type and 0.001 tick are explicit. Settlement remains conservatively T+1
+# until each instrument's historical T+0 eligibility has been independently verified.
+[instruments."518880.SH"]
+asset_type = "fund"
+tick_size = 0.001
+settlement_days = 1
+[instruments."513030.SH"]
+asset_type = "fund"
+tick_size = 0.001
+settlement_days = 1
+[instruments."513100.SH"]
+asset_type = "fund"
+tick_size = 0.001
+settlement_days = 1
+[instruments."164824.SZ"]
+asset_type = "fund"
+tick_size = 0.001
+settlement_days = 1
+[instruments."159866.SZ"]
+asset_type = "fund"
+tick_size = 0.001
+settlement_days = 1
