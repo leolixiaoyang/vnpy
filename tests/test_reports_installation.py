@@ -44,16 +44,16 @@ def test_doctor_without_sdk_or_credentials(capsys, monkeypatch):
 
 def test_no_framework_or_sdk_runtime_imports():
     root = Path(__file__).resolve().parents[1] / "src" / "quantlab"
-    banned = {"vnpy", "jqdata", "jqfactor", "jqdatasdk", "tinyshare", "tushare"}
+    banned = {"vnpy", "jqdata", "jqfactor", "jqdatasdk", "tinyshare", "tushare", "akshare"}
     for file in root.rglob("*.py"):
         tree = ast.parse(file.read_text())
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 assert not any(n.name.split(".")[0] in banned for n in node.names)
-            if isinstance(node, ast.ImportFrom) and node.module:
+            if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
                 assert node.module.split(".")[0] not in banned
 
 
 def test_clean_import_never_loads_sdks():
-    script = "import quantlab; from quantlab.backtest import BacktestRunner; import sys; assert not {'vnpy','jqdata','tinyshare','tushare'} & sys.modules.keys()"
+    script = "import quantlab; from quantlab.backtest import BacktestRunner; import sys; assert not {'vnpy','jqdata','tinyshare','tushare','akshare'} & sys.modules.keys()"
     subprocess.run([sys.executable, "-c", script], check=True)

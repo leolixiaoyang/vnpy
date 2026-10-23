@@ -18,3 +18,9 @@ def test_dividend_proposals_do_not_fail_or_accrue():
         {"ts_code": "600000.SH", "ann_date": "20260120", "end_date": "20251231", "record_date": "20260125", "ex_date": "20260126", "div_proc": "实施", "cash_div_tax": .1}])
     result = corporate_table({"dividend": normalize("dividend", raw)}, QualityLog())
     assert len(result) == 1 and result.cash_per_share.iloc[0] == .1
+
+
+def test_out_of_interval_actions_do_not_block_a_new_empty_account():
+    rows = pd.DataFrame([{"ts_code": "600000.SH", "ann_date": "2006-05-15", "record_date": "2006-05-18", "ex_date": "2006-05-19", "div_proc": "实施", "cash_div_tax": .3},
+                         {"ts_code": "600000.SH", "ann_date": "2006-05-17", "record_date": "2006-05-18", "ex_date": "2006-05-19", "div_proc": "实施", "stk_div": 1.0}])
+    assert corporate_table({"dividend": rows}, QualityLog(), "2026-04-01", "2026-04-30").empty

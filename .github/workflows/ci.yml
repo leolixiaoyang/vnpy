@@ -18,6 +18,6 @@ jobs:
           python -m venv /tmp/quantlab-wheel
           /tmp/quantlab-wheel/bin/pip install dist/*.whl
           cd /tmp
-          /tmp/quantlab-wheel/bin/quantlab doctor --provider tinyshare
+          /tmp/quantlab-wheel/bin/quantlab doctor
           /tmp/quantlab-wheel/bin/quantlab demo --output /tmp/ql-demo
           /tmp/quantlab-wheel/bin/quantlab backtest --config /tmp/ql-demo/demo.toml --offline

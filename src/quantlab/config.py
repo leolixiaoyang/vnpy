@@ -10,6 +10,10 @@ def load_config(path):
         config = tomllib.load(handle)
     if not {"backtest", "data"} <= config.keys():
         raise DataError("Config requires [backtest] and [data]")
+    from .data.factory import DEFAULT_PROVIDER, PROVIDERS
+    config["data"].setdefault("provider", DEFAULT_PROVIDER)
+    if config["data"]["provider"] not in PROVIDERS:
+        raise DataError(f"data.provider must be one of {', '.join(PROVIDERS)}")
     for key in ["start", "end"]:
         from datetime import date
         value = config["backtest"][key]

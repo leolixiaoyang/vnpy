@@ -12,10 +12,13 @@ def combine(frames):
     return pd.concat([f for f in frames if not f.empty], ignore_index=True).drop_duplicates() if any(not f.empty for f in frames) else pd.DataFrame()
 
 
-def corporate_table(tables, quality):
+def corporate_table(tables, quality, start=None, end=None):
     actions = []
     for api in ["dividend", "fund_div"]:
         df = tables.get(api, pd.DataFrame())
+        if not df.empty and start is not None and "ex_date" in df:
+            # Initial holdings are empty; only this interval's ex-dates affect it.
+            df = df[df.ex_date.between(start, end)]
         for _, row in df.iterrows():
             if pd.isna(row.get("ex_date")) or pd.isna(row.get("record_date")):
                 continue
@@ -59,7 +62,9 @@ def prepare(provider, config):
     sessions = sorted(calendars[calendars.is_open == 1].cal_date.unique())
     if len([d for d in sessions if d < start]) < 10:
         provider.quality.record("short_warmup", "Provider calendar has fewer than ten prior sessions")
-    tables["stock_basic"] = combine([provider.fetch("stock_basic", {"list_status": s}) for s in ["L", "D", "P"]])
+    scoped_metadata = getattr(provider.transport, "metadata_by_symbol", False)
+    if not scoped_metadata:
+        tables["stock_basic"] = combine([provider.fetch("stock_basic", {"list_status": s}) for s in ["L", "D", "P"]])
     big, small = params.get("big_index", "000300.SH"), params.get("small_index", "399101.SZ")
     benchmark = backtest.get("benchmark", big)
     indices = sorted({big, small, benchmark})
@@ -92,6 +97,13 @@ def prepare(provider, config):
     stocks = sorted(s for s in stocks if not s.startswith(("3", "4", "8", "68", "92")) and not s.endswith(".BJ"))
     if not stocks:
         raise DataError("No historical constituents or configured fallback stock pool")
+    if scoped_metadata:
+        tables["stock_basic"] = combine([provider.optional("stock_basic", {"ts_code": s, "list_status": "L"}) for s in stocks])
+        if tables["stock_basic"].empty:
+            raise DataError("No stock listing metadata returned for the strategy pool")
+        missing = set(stocks) - set(tables["stock_basic"].ts_code)
+        if missing:
+            provider.quality.record("missing_stock_metadata", ", ".join(sorted(missing)))
     by_endpoint = {k: [] for k in ["daily", "adj_factor", "namechange", "fina_indicator", "income", "balancesheet", "cashflow", "dividend"]}
     for symbol in stocks:
         for endpoint in by_endpoint:
@@ -106,6 +118,9 @@ def prepare(provider, config):
     valuation_dates = [sessions[i - 1] for i, d in enumerate(sessions) if i > 0 and start <= d <= end and d[:7] != sessions[i - 1][:7]]
     valuations = []
     for d in valuation_dates:
+        if getattr(provider.transport, "valuation_by_symbol", False):
+            valuations.extend(provider.optional("daily_basic", {"trade_date": d, "ts_code": s}) for s in stocks)
+            continue
         try:
             valuations.append(provider.optional("daily_basic", {"trade_date": d}))
         except DataError as exc:
@@ -114,7 +129,9 @@ def prepare(provider, config):
             valuations.extend(provider.optional("daily_basic", {"trade_date": d, "ts_code": s}) for s in stocks)
     tables["daily_basic"] = combine(valuations)
     limit_frames = []
-    for d in sessions:
+    if not getattr(provider.transport, "historical_limits", True):
+        provider.quality.record("provider_unavailable", "stk_limit: historical dataset unavailable; limits will be estimated")
+    for d in sessions if getattr(provider.transport, "historical_limits", True) else []:
         # Query by symbol when the market-wide cap is reached instead of caching truncation.
         try:
             frame = provider.optional("stk_limit", {"trade_date": d})
@@ -124,10 +141,11 @@ def prepare(provider, config):
             frame = combine([provider.optional("stk_limit", {"trade_date": d, "ts_code": s}) for s in stocks + list(funds)])
         limit_frames.append(frame)
     tables["stk_limit"] = combine(limit_frames)
-    tables["corporate_actions"] = corporate_table(tables, provider.quality)
+    tables["corporate_actions"] = corporate_table(tables, provider.quality, start, end)
     if tables["corporate_actions"].empty:
-        provider.quality.record("corporate_action_coverage_unverified", "No implemented events returned; coverage not proven")
+        provider.quality.record("corporate_action_coverage_unverified", "No implemented events in the backtest interval; coverage not proven")
     return DataBundle(tables, {"provider": getattr(provider.transport, "provider", "injected"),
                              "sdk_version": getattr(provider.transport, "version", "injected"),
                              "start": start, "end": end, "warmup": warmup,
-                             "mapping_version": "joinquant-tushare-v1", "quality": provider.quality.export()})
+                             "mapping_version": getattr(provider.transport, "mapping_version", "joinquant-tushare-v1"),
+                             "quality": provider.quality.export()})

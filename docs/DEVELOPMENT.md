@@ -4,7 +4,7 @@ The installed `quantlab-research` distribution contains only `quantlab`; legacy 
 
 ## Interfaces and data flow
 
-`SDKTransport.query` → `TushareProvider` → normalized `DataBundle` → bounded `MarketDataView` → strategy intents → `Broker` → `BacktestResult`.
+`AKShareTransport.query` or `SDKTransport.query` → shared `TushareProvider` table-contract layer → normalized `DataBundle` → bounded `MarketDataView` → strategy intents → `Broker` → `BacktestResult`. The shared class name denotes the table schema, not a service dependency. Provider construction is centralized in `quantlab.data.factory`; the default is AKShare, selected through `data.provider` or the preparation/doctor `--provider` override.
 
 DataBundle tables are normalized (yuan, individual shares, ISO dates). Do not normalize a frozen table twice. Snapshot manifests contain raw-file hashes and normalization/mapping versions. Backtests read snapshots only; network preparation is explicit. Quality events travel with snapshots into experiments.
 
@@ -46,4 +46,4 @@ No broker or report changes are needed. Strategies must implement deterministic 
 
 Long-only stock/fund positions, daily close fills, no queues, partial liquidity, market impact, live gateways or optimizer. Stock settlement and fund settlement are instrument rules, independent of execution timing. Price-limit fallbacks and conservative fund rules are approximations, not market-rule certification. Fees are a configurable static original-strategy model.
 
-Run `pytest` offline. Real probes require `QUANTLAB_LIVE=1` and credentials for the selected provider. Never save credentials in fixtures. Contract error tests must distinguish a malformed request from legitimate missing market data.
+Run `pytest` offline. Real probes require `QUANTLAB_LIVE=1`; AKShare needs no token, other providers require their own credentials. Never save credentials in fixtures. Contract error tests must distinguish a malformed request from legitimate missing market data. AKShare mapping details and coverage gaps are in [AKSHARE_CONTRACT.md](AKSHARE_CONTRACT.md).

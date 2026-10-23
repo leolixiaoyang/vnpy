@@ -54,3 +54,23 @@ def test_prepare_constituent_union_data_units_and_monthly_valuations():
     valuation_calls = [params for api, params in transport.calls if api == "daily_basic"]
     assert valuation_calls == [{"trade_date": "20260130"}]
     assert bundle.metadata["provider"] == "fixture"
+
+
+def test_prepare_symbol_scoped_valuations_and_unsupported_limits():
+    transport = RawProviderFixture()
+    transport.valuation_by_symbol = True
+    transport.metadata_by_symbol = True
+    transport.historical_limits = False
+    transport.mapping_version = "akshare-fixture"
+    config = {"backtest": {"start": "2026-01-15", "end": "2026-02-10"},
+              "strategy": {"parameters": {"funds": []}}, "fallback_pools": {}}
+    bundle = prepare(TushareProvider(transport), config)
+    calls = [params for api, params in transport.calls if api == "daily_basic"]
+    assert len(calls) == 4
+    assert {p["ts_code"] for p in calls} == set(bundle.tables["daily"].ts_code)
+    assert all(p["trade_date"] == "20260130" for p in calls)
+    metadata_calls = [params for api, params in transport.calls if api == "stock_basic"]
+    assert len(metadata_calls) == 4 and all("ts_code" in p for p in metadata_calls)
+    assert not any(api == "stk_limit" for api, _ in transport.calls)
+    assert bundle.metadata["mapping_version"] == "akshare-fixture"
+    assert any(e["code"] == "provider_unavailable" for e in bundle.metadata["quality"])

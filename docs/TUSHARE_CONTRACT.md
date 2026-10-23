@@ -2,6 +2,8 @@
 
 Reviewed against official documentation on 2026-10-23. This records documented contracts, not successful authentication with the user's account. Use `doctor --probe` to produce provider-specific verification and response samples.
 
+The default provider is now AKShare. The shared table schema below is also used internally by that adapter; it does not require a Tushare connection. See [AKShare mapping and coverage](AKSHARE_CONTRACT.md).
+
 ## Transport
 
 - Python SDK `pro.query(api_name, fields=..., **params)` returns pandas DataFrame.

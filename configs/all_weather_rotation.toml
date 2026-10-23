@@ -1,8 +1,12 @@
 [data]
-provider = "tinyshare"
+provider = "akshare" # akshare | tushare | tinyshare
 snapshot = "../data/all_weather"
 cache = "../.quantlab/cache"
 strict = false
+
+[data.akshare]
+# Explicitly route this listed LOF through the LOF price endpoint.
+lof_symbols = ["164824.SZ"]
 
 [backtest]
 start = "2018-01-01"

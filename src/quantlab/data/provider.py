@@ -36,6 +36,8 @@ class TushareProvider:
             raw = self._complete(api, params, fields)
             if self.cache:
                 self.cache.write(api, params, fields, raw)
+        for event in raw.attrs.get("quality", []):
+            self.quality.record(event["code"], event["detail"])
         df = normalize(api, raw)
         if not df.empty and spec.date_axis and "start_date" in params:
             lo = pd.Timestamp(params["start_date"]).strftime("%Y-%m-%d")
@@ -63,4 +65,7 @@ class TushareProvider:
         mid = lo + (hi - lo) // 2
         left = self._complete(api, {**params, "end_date": mid.strftime("%Y%m%d")}, fields)
         right = self._complete(api, {**params, "start_date": (mid + timedelta(days=1)).strftime("%Y%m%d")}, fields)
-        return pd.concat([left, right], ignore_index=True).drop_duplicates()
+        result = pd.concat([left, right], ignore_index=True).drop_duplicates()
+        result.attrs["quality"] = [dict(t) for t in dict.fromkeys(
+            tuple(e.items()) for frame in [left, right] for e in frame.attrs.get("quality", []))]
+        return result

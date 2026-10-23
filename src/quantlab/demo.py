@@ -48,7 +48,7 @@ def make_demo(output):
     root.mkdir(parents=True, exist_ok=True)
     demo_bundle().save(root / "snapshot")
     (root / "demo.toml").write_text('''[data]
-provider = "tinyshare"
+provider = "akshare"
 snapshot = "snapshot"
 strict = false
 [backtest]
