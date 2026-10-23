@@ -1,0 +1,23 @@
+name: independent-core
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install '.[test]'
+      - run: python -m pytest
+      - run: python -m build --wheel
+      - run: |
+          python -m venv /tmp/quantlab-wheel
+          /tmp/quantlab-wheel/bin/pip install dist/*.whl
+          cd /tmp
+          /tmp/quantlab-wheel/bin/quantlab doctor --provider tinyshare
+          /tmp/quantlab-wheel/bin/quantlab demo --output /tmp/ql-demo
+          /tmp/quantlab-wheel/bin/quantlab backtest --config /tmp/ql-demo/demo.toml --offline
