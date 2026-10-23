@@ -43,3 +43,16 @@ lab/
 lab_data/
 /.mypy_cache
 lab_data/multi_ma/multi_ma_equity_curve.png
+
+# Local research artifacts and credentials
+.quantlab/
+.pytest_cache/
+.venv/
+__pycache__/
+/data/
+runs/
+demo-data/
+*.whl
+.env
+.env.*
+!.env.example
